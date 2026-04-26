@@ -1,0 +1,55 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Stores user statistics and unlocked content.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "User's unique ID" },
+        "displayName": { "type": "string" },
+        "totalScore": { "type": "number", "description": "Sum of all life path points earned" },
+        "highScore": { "type": "number", "description": "Highest score achieved in a single game" },
+        "bossDefeats": { "type": "number" },
+        "coins": { "type": "number", "description": "Currency for buying skins" },
+        "unlockedModifiers": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "unlockedSkins": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "selectedSkin": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "lastActive": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "totalScore"]
+    },
+    "GameSession": {
+      "title": "GameSession",
+      "description": "Log of a single game play-through.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "score": { "type": "number" },
+        "result": { "type": "string", "enum": ["VICTORY", "GAME_OVER"] },
+        "activeModifiers": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "score", "result", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile data"
+    },
+    "/sessions/{sessionId}": {
+      "schema": "GameSession",
+      "description": "Historical game session logs"
+    }
+  }
+}

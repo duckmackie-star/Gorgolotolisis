@@ -1,0 +1,95 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: userId (auth.uid)
+    // Fields:
+    //   - uid: string (required)
+    //   - displayName: string
+    //   - totalScore: number (required)
+    //   - highScore: number
+    //   - bossDefeats: number
+    //   - coins: number
+    //   - unlockedModifiers: list of strings
+    //   - unlockedSkins: list of strings
+    //   - selectedSkin: string
+    //   - createdAt: timestamp
+    //   - lastActive: timestamp
+    //
+    // Collection: sessions
+    // Document ID: sessionId
+    // Fields:
+    //   - userId: string (required)
+    //   - score: number (required)
+    //   - result: string (VICTORY/GAME_OVER)
+    //   - activeModifiers: list of strings
+    //   - timestamp: timestamp
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['uid', 'totalScore']) &&
+             data.uid == request.auth.uid &&
+             data.totalScore is number &&
+             (!('highScore' in data) || data.highScore is number) &&
+             (!('coins' in data) || data.coins is number) &&
+             (!('selectedSkin' in data) || data.selectedSkin is string) &&
+             (!('lastAIPlay' in data) || data.lastAIPlay is number) &&
+             (!('upgrades' in data) || (data.upgrades is map)) &&
+             (!('isVip' in data) || data.isVip is bool) &&
+             (!('displayName' in data) || (data.displayName is string && data.displayName.size() < 100));
+    }
+
+    function isValidGameSession(data) {
+      return data.keys().hasAll(['userId', 'score', 'result', 'timestamp']) &&
+             data.userId == request.auth.uid &&
+             data.score is number &&
+             data.result in ['VICTORY', 'GAME_OVER'];
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "duckmackie@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidUserProfile(request.resource.data);
+      allow update: if isOwner(userId) && isValidUserProfile(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /sessions/{sessionId} {
+      allow read: if isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidGameSession(request.resource.data);
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+  }
+}
